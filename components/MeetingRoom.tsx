@@ -38,11 +38,15 @@ const MeetingRoom: React.FC = () => {
 
   const callingState = useCallCallingState();
 
-  // State for sending email
-  const [from, setFrom] = useState<string>('');
-  const [to, setTo] = useState<string>('');
-  const [subject, setSubject] = useState<string>('');
-  const [text, setText] = useState<string>('');
+  // State for email form
+  const [to, setTo] = useState<string>(''); // Holds the recipient email
+  const [isPopupOpen, setIsPopupOpen] = useState(false); // Manages popup visibility
+
+  // Close the popup
+  const closePopup = () => {
+    setTo(''); // Reset email input
+    setIsPopupOpen(false); // Close popup
+  };
 
   if (callingState !== CallingState.JOINED) return <Loader />;
 
@@ -57,8 +61,10 @@ const MeetingRoom: React.FC = () => {
     }
   };
 
+  // Handle email form submission
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent page reload
+    e.stopPropagation(); // Stop propagation to other components
 
     try {
       const response = await fetch('http://localhost:4000/send-mail', {
@@ -66,10 +72,11 @@ const MeetingRoom: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({"to":to,
-  "from": user?.emailAddresses[0]?.emailAddress || "N/A",
- 
-  "text": "https://talk.manavtricks.in/"+pathname}),
+        body: JSON.stringify({
+          to,
+          from: user?.emailAddresses[0]?.emailAddress || "N/A",
+          text: `https://talk.manavtricks.in${pathname}`,
+        }),
       });
 
       if (!response.ok) {
@@ -81,11 +88,7 @@ const MeetingRoom: React.FC = () => {
     } catch (error) {
       console.error('Error sending email:', error);
     } finally {
-      // Clear input fields after submission
-      setFrom('');
-      setTo('');
-      setSubject('');
-      setText('');
+      closePopup(); // Close popup after submission
     }
   };
 
@@ -103,6 +106,7 @@ const MeetingRoom: React.FC = () => {
           <CallParticipantsList onClose={() => setShowParticipants(false)} />
         </div>
       </div>
+
       {/* video layout and call controls */}
       <div className="fixed bottom-0 flex w-full items-center justify-center gap-5">
         <CallControls onLeave={() => router.push('https://talk.manavtricks.in')} />
@@ -135,33 +139,50 @@ const MeetingRoom: React.FC = () => {
           </div>
         </button>
 
-        {/* Optional user information display and email form */}
         {isLoaded && isSignedIn && (
-  <div className="text-white flex items-center">
-    <p className="mr-4">
-      Welcome, {user?.fullName || "User"}! Your email: {user?.emailAddresses[0]?.emailAddress || "N/A"} {pathname}
-    </p>
-    <form onSubmit={handleSubmit} className="flex flex-col items-start">
-
-  <input
-    type="email"
-    placeholder="To (recipient email)"
-    value={to}
-    onChange={(e) => setTo(e.target.value)}
-    className="p-2 rounded text-black mb-2"
-    required
-  />
-  
-  <button type="submit" className="ml-2 p-2 bg-blue-500 text-white rounded">
-    Send
-  </button>
-</form>
-
-  </div>
-)}
+          <div className="text-white flex items-center">
+            {/* Button to open email form popup */}
+            <button
+              onClick={() => setIsPopupOpen(true)}
+              className="p-2 bg-blue-500 text-white rounded"
+            >
+              Send Invite
+            </button>
+          </div>
+        )}
 
         {!isPersonalRoom && <EndCallButton />}
       </div>
+
+      {/* Email form popup */}
+      {isPopupOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg text-black w-1/3">
+            <h2 className="text-lg font-bold mb-4">Send Invite</h2>
+            <form onSubmit={handleSubmit} className="flex flex-col items-start">
+              
+              <input
+                type="email"
+                placeholder="To (recipient email)"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className="p-2 rounded text-black mb-4 w-full"
+                required
+                
+              />
+              <button type="submit" className="p-2 bg-blue-500 text-white rounded">
+                Send
+              </button>
+            </form>
+            <button
+              onClick={closePopup} // Close popup on click
+              className="mt-4 p-2 bg-gray-500 text-white rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
